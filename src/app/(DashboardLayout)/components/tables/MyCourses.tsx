@@ -42,7 +42,7 @@ interface Course {
 interface Resource {
     id: number;
     title: string;
-    type: 'pdf' | 'video' | 'link';
+    type: 'pdf' | 'video' | 'link' | 'excel' | 'word';
     url: string;
     dateAdded: string;
 }
@@ -51,6 +51,7 @@ const MyCourses = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [downloadingResourceId, setDownloadingResourceId] = useState<number | null>(null);
     const router = useRouter();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -59,11 +60,13 @@ const MyCourses = () => {
         setIsLoading(true);
         try {
             const response = await api.get('/student/courses');
+            console.log('Fetched courses:', response.data);
             setCourses(response.data);
             setError(null);
         } catch (error: any) {
-            setError(error.response?.data?.message || 'Failed to fetch courses');
-            console.error('Fetch error:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to fetch courses';
+            console.error('Fetch courses error:', error, errorMessage);
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -81,15 +84,38 @@ const MyCourses = () => {
         });
     };
 
-    const handleResourceClick = (url: string) => {
-        router.push(url);
-    };
+
+const handleResourceClick = (resource: Resource) => {
+  if (resource.type === 'link') {
+    window.open(resource.url, "_blank");
+    return;
+  }
+
+  const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/resources/${resource.id}/download`;
+
+  window.location.href = downloadUrl;
+};
+
+
+
 
     const getResourceIcon = (type: string) => {
         switch (type) {
             case 'pdf': return <PictureAsPdfIcon color="error" />;
             case 'video': return <PlayCircleIcon color="primary" />;
+            case 'excel': return <DownloadIcon color="action" />;
+            case 'word': return <DownloadIcon color="action" />;
             default: return <DownloadIcon color="action" />;
+        }
+    };
+
+    const getExtension = (type: string) => {
+        switch (type) {
+            case 'pdf': return 'pdf';
+            case 'video': return 'mp4';
+            case 'excel': return 'xlsx';
+            case 'word': return 'docx';
+            default: return '';
         }
     };
 
@@ -101,7 +127,6 @@ const MyCourses = () => {
 
     const renderCourseCard = (course: Course) => (
         <Paper elevation={3} sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-            {/* Course Header */}
             <Box display="flex" flexDirection="column" gap={1} mb={2}>
                 <Typography variant="h6" fontWeight={600} sx={{ wordBreak: 'break-word' }}>
                     {course.name}
@@ -124,12 +149,10 @@ const MyCourses = () => {
                 </Box>
             </Box>
 
-            {/* Course Description */}
             <Typography variant="body2" color="text.secondary" mb={2}>
                 {course.description}
             </Typography>
 
-            {/* Course Dates */}
             <Box display="flex" flexWrap="wrap" gap={2} mb={2}>
                 <Typography variant="body2">
                     <strong>Start:</strong> {formatDate(course.startDate)}
@@ -139,10 +162,8 @@ const MyCourses = () => {
                 </Typography>
             </Box>
 
-            {/* Payment Status Alert */}
             {course.paymentStatus !== 'PAID' && renderPaymentStatusAlert()}
 
-            {/* Progress Bar - Always visible */}
             <Box mb={3}>
                 <Typography variant="subtitle2" gutterBottom>
                     Progress: {course.progress}%
@@ -154,7 +175,6 @@ const MyCourses = () => {
                 />
             </Box>
 
-            {/* Resources Table - Only if paid */}
             {course.paymentStatus === 'PAID' && course.resources.length > 0 && (
                 <>
                     <Typography variant="subtitle2" gutterBottom>
@@ -168,37 +188,41 @@ const MyCourses = () => {
                         borderRadius: 1,
                         mb: 2
                     }}>
-                        <Table size="small" sx={{ minWidth: 650 }}>
+                        <Table size="small" sx={{ minWidth: isMobile ? 300 : 650 }}>
                             <TableHead>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 600 }}>Resource</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
-                                    {/* <TableCell sx={{ fontWeight: 600 }}>Date Added</TableCell> */}
                                     <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {course.resources.map((resource) => (
                                     <TableRow key={resource.id} hover>
-                                        <TableCell sx={{ wordBreak: 'break-word', maxWidth: 200 }}>
+                                        <TableCell sx={{ wordBreak: 'break-word', maxWidth: isMobile ? 150 : 200 }}>
                                             {resource.title}
                                         </TableCell>
                                         <TableCell>
                                             <Chip 
-                                                label={resource.type.toUpperCase()}
+                                                label={resource?.type?.toUpperCase()}
                                                 size="small"
                                                 variant="outlined"
                                             />
                                         </TableCell>
-                                        {/* <TableCell>
-                                            {formatDate(resource.dateAdded)}
-                                        </TableCell> */}
                                         <TableCell>
                                             <Button
                                                 size="small"
-                                                startIcon={getResourceIcon(resource.type)}
-                                                onClick={() => handleResourceClick(resource.url)}
+                                                startIcon={
+                                                    downloadingResourceId === resource.id ? 
+                                                    <CircularProgress size={16} /> : 
+                                                    getResourceIcon(resource.type)
+                                                }
+                                                onClick={() => {
+                                                    console.log('Download button clicked for resource:', resource);
+                                                    handleResourceClick(resource);
+                                                }}
                                                 sx={{ whiteSpace: 'nowrap' }}
+                                                disabled={downloadingResourceId === resource.id}
                                             >
                                                 {resource.type === 'link' ? 'View' : 'Download'}
                                             </Button>

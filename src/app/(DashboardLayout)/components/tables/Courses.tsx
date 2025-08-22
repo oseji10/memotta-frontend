@@ -40,6 +40,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import UploadIcon from '@mui/icons-material/Upload';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import DescriptionIcon from '@mui/icons-material/Description';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 interface Course {
     courseId: number;
@@ -61,13 +62,14 @@ interface Instructor {
 }
 
 interface CourseMaterial {
-    materialId: number;
+    resourceId: number;
     courseId: number;
     fileName: string;
     filePath: string;
     fileType: string;
     fileSize: number;
     uploadedAt: string;
+    documentType: 'excel' | 'pdf' | 'word' | 'video';
 }
 
 interface CourseModule {
@@ -92,6 +94,8 @@ const Courses = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [openMaterialsDialog, setOpenMaterialsDialog] = useState(false);
     const [openModulesDialog, setOpenModulesDialog] = useState(false);
+    const [openPreviewDialog, setOpenPreviewDialog] = useState(false);
+    const [previewMaterial, setPreviewMaterial] = useState<CourseMaterial | null>(null);
     const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
     const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,6 +108,7 @@ const Courses = () => {
         moduleOrder: 0
     });
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [documentType, setDocumentType] = useState<'excel' | 'pdf' | 'word' | 'video' | ''>('');
 
     const fetchCourses = async () => {
         setIsLoading(true);
@@ -213,6 +218,7 @@ const Courses = () => {
         setOpenMaterialsDialog(false);
         setSelectedCourseId(null);
         setSelectedFile(null);
+        setDocumentType('');
     };
 
     const handleCloseModulesDialog = () => {
@@ -223,6 +229,11 @@ const Courses = () => {
             moduleDescription: '',
             moduleOrder: 0
         });
+    };
+
+    const handleClosePreviewDialog = () => {
+        setOpenPreviewDialog(false);
+        setPreviewMaterial(null);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,14 +262,19 @@ const Courses = () => {
         }
     };
 
+    const handleDocumentTypeChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+        setDocumentType(e.target.value as 'excel' | 'pdf' | 'word' | 'video');
+    };
+
     const handleUploadMaterial = async () => {
-        if (!selectedFile || !selectedCourseId) return;
+        if (!selectedFile || !selectedCourseId || !documentType) return;
         
         setIsSubmitting(true);
         try {
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('courseId', selectedCourseId.toString());
+            formData.append('type', documentType);
 
             await api.post('/courses/resources', formData, {
                 headers: {
@@ -268,6 +284,7 @@ const Courses = () => {
             
             fetchMaterials(selectedCourseId);
             setSelectedFile(null);
+            setDocumentType('');
         } catch (error: any) {
             setError(error.response?.data?.message || 'Failed to upload material');
             console.error('Upload error:', error);
@@ -324,12 +341,12 @@ const Courses = () => {
         }
     };
 
-    const handleDeleteMaterial = async (materialId: number) => {
+    const handleDeleteMaterial = async (resourceId: number) => {
         if (!selectedCourseId) return;
         
         setIsSubmitting(true);
         try {
-            await api.delete(`/courses/materials/${materialId}`);
+            await api.delete(`/resources/delete/${resourceId}`);
             fetchMaterials(selectedCourseId);
         } catch (error: any) {
             setError(error.response?.data?.message || 'Failed to delete material');
@@ -337,6 +354,11 @@ const Courses = () => {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handlePreviewMaterial = (material: CourseMaterial) => {
+        setPreviewMaterial(material);
+        setOpenPreviewDialog(true);
     };
 
     const handleSubmit = async () => {
@@ -401,6 +423,38 @@ const Courses = () => {
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const renderPreviewContent = () => {
+        if (!previewMaterial) return null;
+
+        switch (previewMaterial.documentType) {
+            case 'pdf':
+                return (
+                    <iframe
+                        src={previewMaterial.filePath}
+                        style={{ width: '100%', height: '500px' }}
+                        title={previewMaterial.fileName}
+                    />
+                );
+            case 'video':
+                return (
+                    <video controls style={{ width: '100%', maxHeight: '500px' }}>
+                        <source src={previewMaterial.filePath} type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                );
+            case 'excel':
+            case 'word':
+                return (
+                    <Typography>
+                        Preview not available for {previewMaterial.documentType} files. 
+                        Please download to view the content.
+                    </Typography>
+                );
+            default:
+                return <Typography>Unable to preview this file type</Typography>;
+        }
     };
 
     return (
@@ -627,7 +681,21 @@ const Courses = () => {
                 <DialogTitle>Course Materials</DialogTitle>
                 <DialogContent>
                     <Box sx={{ mt: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
+                            <FormControl sx={{ minWidth: 120 }}>
+                                <InputLabel>Document Type</InputLabel>
+                                <Select
+                                    value={documentType}
+                                    label="Document Type"
+                                    onChange={handleDocumentTypeChange}
+                                >
+                                    <MenuItem value="">Select Type</MenuItem>
+                                    <MenuItem value="excel">Excel</MenuItem>
+                                    <MenuItem value="pdf">PDF</MenuItem>
+                                    <MenuItem value="word">Word</MenuItem>
+                                    <MenuItem value="video">Video</MenuItem>
+                                </Select>
+                            </FormControl>
                             <input
                                 accept="*/*"
                                 style={{ display: 'none' }}
@@ -654,7 +722,7 @@ const Courses = () => {
                                 color="primary"
                                 startIcon={<UploadIcon />}
                                 onClick={handleUploadMaterial}
-                                disabled={!selectedFile || isSubmitting}
+                                disabled={!selectedFile || !documentType || isSubmitting}
                                 sx={{ ml: 2 }}
                             >
                                 {isSubmitting ? <CircularProgress size={24} /> : 'Upload'}
@@ -667,14 +735,21 @@ const Courses = () => {
                                     <ListItem key={material.materialId}>
                                         <ListItemText
                                             primary={material.title}
-                                            secondary={`${material.type} `}
-                                            // secondary={`${material.type} - ${formatFileSize(material.fileSize)}`}
+                                            secondary={`${material?.type?.toUpperCase()}`}
                                         />
                                         <ListItemSecondaryAction>
                                             <IconButton
                                                 edge="end"
+                                                color="primary"
+                                                onClick={() => handlePreviewMaterial(material)}
+                                                disabled={isSubmitting}
+                                            >
+                                                <VisibilityIcon />
+                                            </IconButton>
+                                            <IconButton
+                                                edge="end"
                                                 color="error"
-                                                onClick={() => handleDeleteMaterial(material.materialId)}
+                                                onClick={() => handleDeleteMaterial(material.resourceId)}
                                                 disabled={isSubmitting}
                                             >
                                                 <DeleteIcon />
@@ -692,6 +767,22 @@ const Courses = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseMaterialsDialog}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Preview Dialog */}
+            <Dialog 
+                open={openPreviewDialog} 
+                onClose={handleClosePreviewDialog} 
+                maxWidth="lg" 
+                fullWidth
+            >
+                <DialogTitle>Preview: {previewMaterial?.fileName}</DialogTitle>
+                <DialogContent>
+                    {renderPreviewContent()}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleClosePreviewDialog}>Close</Button>
                 </DialogActions>
             </Dialog>
 
