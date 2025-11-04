@@ -50,14 +50,14 @@ const Dashboard = () => {
     {
       title: "Lecture Archive",
       description: "View all lecture recordings",
-      url: "/dashboard/",
+      url: "/dashboard/lecture-archives",
       color: "secondary",
       icon: <ArrowForward />
     },
     {
       title: "Assessments",
       description: "View all my assessments",
-      url: "/dashboard/",
+      url: "/dashboard/my-assessments",
       color: "secondary",
       icon: <ArrowForward />
     },
@@ -66,7 +66,7 @@ const Dashboard = () => {
     {
       title: "Certificates",
       description: "View and download my certificates",
-      url: "/dashboard/",
+      url: "/dashboard/my-certificates",
       color: "secondary",
       icon: <ArrowForward />
     },

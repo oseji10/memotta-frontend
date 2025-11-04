@@ -121,22 +121,22 @@ const MENU_CONFIG: Record<string, any[]> = {
     },
     
     {
-      id: "lecture-archive",
+      id: "lecture-archives",
       title: "Lecture Archive",
       icon: IconArchive,
-      href: "/dashboard/",
+      href: "/dashboard/lecture-archives",
     },
     {
       id: "assignments",
       title: "Assessments",
       icon: IconPencil,
-      href: "/dashboard/",
+      href: "/dashboard/my-assessments",
     },
        {
       id: "certificates",
       title: "Certificates",
       icon: IconSchool,
-      href: "/dashboard/",
+      href: "/dashboard/my-certificates",
     },
      {
       id: "job-opportunities",

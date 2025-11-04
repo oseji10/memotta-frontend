@@ -218,7 +218,6 @@ const handleResourceClick = (resource: Resource) => {
                                                     getResourceIcon(resource.type)
                                                 }
                                                 onClick={() => {
-                                                    console.log('Download button clicked for resource:', resource);
                                                     handleResourceClick(resource);
                                                 }}
                                                 sx={{ whiteSpace: 'nowrap' }}
